@@ -11,6 +11,9 @@ from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.common.exceptions import TimeoutException
 from bs4 import BeautifulSoup
 
 class PriceScraper():
@@ -32,18 +35,38 @@ class PriceScraper():
         # Open a headless chrome browser
         options = Options()
         options.add_argument('--window-size=1920,1200')
-        options.add_argument("--headless")
+        # options.add_argument("--headless")
         driver = webdriver.Chrome(options=options)
         url = f'https://www.google.com/travel/flights/non-stop-flights-from-{self.src}-to-{self.dest}.html'
         driver.get(url)
-        driver.find_element(By.XPATH, '//*[@class="RLVa8 GeHXyb"]').click()
-        trip_type = driver.find_element(
-            By.XPATH, '//div[contains(@class, "yRXJAe iWO5td")]'
+        driver.find_element(By.XPATH, "//*[text()='Accept all']").click()
+        # import ipdb; ipdb.set_trace()
+        
+         # Click trip type dropdown
+        trip_type_button = WebDriverWait(driver, 10).until(
+            EC.element_to_be_clickable((By.XPATH, '//*[@class="RLVa8 GeHXyb"]'))
         )
-        trip_type.find_element(By.XPATH, '//*[@class="Akxp3 Lxea9c"]').find_element(
-            By.XPATH, '//*[@class="uT1UOd"]').click()
-        date_box = driver.find_element(
-            By.XPATH, '//*[contains(@class, "eoY5cb j0Ppje")]')
+        trip_type_button.click()
+        time.sleep(2)
+        
+        # Wait for dropdown to be visible and click "One way"
+        one_way_option = WebDriverWait(driver, 10).until(
+            EC.element_to_be_clickable((By.XPATH, "//li[contains(@class, 'VfPpkd-rymPhb-ibnC6b')]//span[text()='One way']"))
+        )
+        driver.execute_script("arguments[0].click();", one_way_option)
+        time.sleep(2)
+        
+
+        
+        # driver.find_element(By.XPATH, '//*[@class="RLVa8 GeHXyb"]').click()
+        
+        # trip_type = driver.find_element(
+        #     By.XPATH, '//div[contains(@class, "yRXJAe iWO5td")]'
+        # )
+        # trip_type.find_element(By.XPATH, '//*[@class="Akxp3 Lxea9c"]').find_element(
+        #     By.XPATH, '//*[@class="uT1UOd"]').click()
+        # date_box = driver.find_element(
+        #     By.XPATH, '//*[contains(@class, "eoY5cb j0Ppje")]')
         time.sleep(2)
 
         driver.execute_script("arguments[0].value=''", date_box)
