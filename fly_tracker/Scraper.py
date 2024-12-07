@@ -32,48 +32,55 @@ class PriceScraper():
         Load dynamic chrome browser and return page source to scrape
         """
         self.preprocess()
-        # Open a headless chrome browser
-        options = Options()
-        options.add_argument('--window-size=1920,1200')
+        options = webdriver.ChromeOptions()
         # options.add_argument("--headless")
+        options.add_argument('--window-size=1920,1200')
         driver = webdriver.Chrome(options=options)
-        url = f'https://www.google.com/travel/flights/non-stop-flights-from-{self.src}-to-{self.dest}.html'
-        driver.get(url)
-        driver.find_element(By.XPATH, "//*[text()='Accept all']").click()
-        # import ipdb; ipdb.set_trace()
         
-         # Click trip type dropdown
-        trip_type_button = WebDriverWait(driver, 10).until(
-            EC.element_to_be_clickable((By.XPATH, '//*[@class="RLVa8 GeHXyb"]'))
-        )
-        trip_type_button.click()
-        time.sleep(2)
-        
-        # Wait for dropdown to be visible and click "One way"
-        one_way_option = WebDriverWait(driver, 10).until(
-            EC.element_to_be_clickable((By.XPATH, "//li[contains(@class, 'VfPpkd-rymPhb-ibnC6b')]//span[text()='One way']"))
-        )
-        driver.execute_script("arguments[0].click();", one_way_option)
-        time.sleep(2)
-        
-
-        
-        # driver.find_element(By.XPATH, '//*[@class="RLVa8 GeHXyb"]').click()
-        
-        # trip_type = driver.find_element(
-        #     By.XPATH, '//div[contains(@class, "yRXJAe iWO5td")]'
-        # )
-        # trip_type.find_element(By.XPATH, '//*[@class="Akxp3 Lxea9c"]').find_element(
-        #     By.XPATH, '//*[@class="uT1UOd"]').click()
-        # date_box = driver.find_element(
-        #     By.XPATH, '//*[contains(@class, "eoY5cb j0Ppje")]')
-        time.sleep(2)
-
-        driver.execute_script("arguments[0].value=''", date_box)
-        date_box.send_keys(self.date)
-        date_box.send_keys(Keys.ENTER)
-        time.sleep(2)
-        return driver.page_source
+        try:
+            # Navigate to Google Flights
+            url = f'https://www.google.com/travel/flights/non-stop-flights-from-{self.src}-to-{self.dest}.html'
+            driver.get(url)
+            driver.implicitly_wait(10)
+            
+            # Accept cookies
+            cookie_button = WebDriverWait(driver, 10).until(
+                EC.element_to_be_clickable((By.XPATH, "//*[text()='Accept all']"))
+            )
+            cookie_button.click()
+            time.sleep(2)
+            
+            # Click trip type dropdown
+            trip_type_button = WebDriverWait(driver, 10).until(
+                EC.element_to_be_clickable((By.XPATH, '//*[@class="RLVa8 GeHXyb"]'))
+            )
+            trip_type_button.click()
+            time.sleep(2)
+            
+            # Wait for dropdown to be visible and click "One way"
+            one_way_option = WebDriverWait(driver, 10).until(
+                EC.element_to_be_clickable((By.XPATH, "//li[contains(@class, 'VfPpkd-rymPhb-ibnC6b')]//span[text()='One way']"))
+            )
+            driver.execute_script("arguments[0].click();", one_way_option)
+            time.sleep(2)
+            
+            # Find and fill in the date
+            date_box = WebDriverWait(driver, 10).until(
+                EC.presence_of_element_located((By.XPATH, "//input[@placeholder='Departure']"))
+            )
+            driver.execute_script("arguments[0].value='';", date_box)
+            date_box.send_keys(self.date)
+            date_box.send_keys(Keys.RETURN)
+            time.sleep(2)
+            
+            return driver.page_source
+            
+        except Exception as e:
+            print(f"Error: {str(e)}")
+            driver.save_screenshot("error.png")
+            raise
+        finally:
+            driver.quit()
     def soupify(self,page: str) -> BeautifulSoup:
         """
         Return page to scrape as a BeautifulSoup object
