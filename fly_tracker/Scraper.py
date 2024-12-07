@@ -21,19 +21,32 @@ class PriceScraper():
     Scraper class that scrapes google flights
     """
 
-    def __init__(self, src: str, dest: str, price: int, date: str) -> None:
+    def __init__(self, src: str, dest: str, price: int, date: str, return_date: str = None) -> None:
+        """
+        Initialize PriceScraper
+        Args:
+            src (str): Source airport code
+            dest (str): Destination airport code
+            price (int): Maximum price
+            date (str): Departure date
+            return_date (str, optional): Return date. If None, search one-way flights
+        """
         self.src = src
         self.dest = dest
         self.price = price
         self.date = date
+        self.return_date = return_date
+        self.is_oneway = return_date is None
 
-    def get_page(self):
+    def get_page(self, sleep_time: float = 0.5):
         """
         Load dynamic chrome browser and return page source to scrape
+        Args:
+            sleep_time (float): Number of seconds to sleep between actions (default: 0.5)
         """
         self.preprocess()
         options = webdriver.ChromeOptions()
-        # options.add_argument("--headless")
+        options.add_argument("--headless")
         options.add_argument('--window-size=1920,1200')
         driver = webdriver.Chrome(options=options)
         
@@ -48,21 +61,22 @@ class PriceScraper():
                 EC.element_to_be_clickable((By.XPATH, "//*[text()='Accept all']"))
             )
             cookie_button.click()
-            time.sleep(2)
+            time.sleep(sleep_time)
             
             # Click trip type dropdown
             trip_type_button = WebDriverWait(driver, 10).until(
                 EC.element_to_be_clickable((By.XPATH, '//*[@class="RLVa8 GeHXyb"]'))
             )
             trip_type_button.click()
-            time.sleep(2)
+            time.sleep(sleep_time)
             
-            # Wait for dropdown to be visible and click "One way"
-            one_way_option = WebDriverWait(driver, 10).until(
+            if self.is_oneway:
+                # Wait for dropdown and click "One way"
+                one_way_option = WebDriverWait(driver, 10).until(
                 EC.element_to_be_clickable((By.XPATH, "//li[contains(@class, 'VfPpkd-rymPhb-ibnC6b')]//span[text()='One way']"))
             )
             driver.execute_script("arguments[0].click();", one_way_option)
-            time.sleep(2)
+            time.sleep(sleep_time)
             
             # Find and fill in the date
             date_box = WebDriverWait(driver, 10).until(
@@ -71,16 +85,32 @@ class PriceScraper():
             driver.execute_script("arguments[0].value='';", date_box)
             date_box.send_keys(self.date)
             date_box.send_keys(Keys.RETURN)
-            time.sleep(2)
+            time.sleep(sleep_time)
 
-            # Click on the search button
+            # Click search button
             search_button = WebDriverWait(driver, 10).until(
                 EC.element_to_be_clickable((By.XPATH, "//button[@aria-label='Search']"))
             )
             search_button.click()
-            time.sleep(2)
+            time.sleep(sleep_time)
 
-            import ipdb; ipdb.set_trace()
+            # Click stops button
+            stops_button = WebDriverWait(driver, 10).until(
+                EC.element_to_be_clickable((By.XPATH, "//button[contains(@aria-label, 'Stops')]"))
+            )
+            stops_button.click()
+            time.sleep(sleep_time)
+
+            # Select "Nonstop only"
+            nonstop_option = WebDriverWait(driver, 10).until(
+                EC.element_to_be_clickable((By.XPATH, "//*[contains(text(), 'Nonstop only')]"))
+            )
+            driver.execute_script("arguments[0].click();", nonstop_option)
+            time.sleep(sleep_time)
+
+            # Send ESC key
+            webdriver.ActionChains(driver).send_keys(Keys.ESCAPE).perform()
+            time.sleep(sleep_time)
             
             return driver.page_source
             
@@ -120,7 +150,9 @@ class PriceScraper():
             dep_city = flight.find(class_='G2WY5c sSHqwe ogfYpf tPgKwe').text
             arr_time = flight.find(class_='XWcVob YMlIz ogfYpf tPgKwe').text
             arr_city = flight.find(class_='c8rWCd sSHqwe ogfYpf tPgKwe').text
-            price = flight.find(class_=re.compile('YMlIz FpEdX')).text
+            price_text = flight.find(class_=re.compile('YMlIz FpEdX')).text
+            currency, price = price_text.split('\xa0')
+            price = int(price)
             if price > self.price:
                 continue
             airline = flight.find(class_='h1fkLb').span.text
@@ -132,6 +164,7 @@ class PriceScraper():
                 "Arrival Time": arr_time,
                 "Date": self.date,
                 "Price": price,
+                "Currency": currency,
                 "Airline": airline,
                 "Timestamp": timestamp
             }
