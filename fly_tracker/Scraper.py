@@ -72,6 +72,15 @@ class PriceScraper():
             date_box.send_keys(self.date)
             date_box.send_keys(Keys.RETURN)
             time.sleep(2)
+
+            # Click on the search button
+            search_button = WebDriverWait(driver, 10).until(
+                EC.element_to_be_clickable((By.XPATH, "//button[@aria-label='Search']"))
+            )
+            search_button.click()
+            time.sleep(2)
+
+            import ipdb; ipdb.set_trace()
             
             return driver.page_source
             
@@ -103,6 +112,8 @@ class PriceScraper():
         """
         flights = soup.find_all(class_='pIav2d')
         data = []
+
+        assert len(flights) > 0, "No flights found"
 
         for flight in flights:
             dep_time = flight.find(class_='wtdjmc YMlIz ogfYpf tPgKwe').text
